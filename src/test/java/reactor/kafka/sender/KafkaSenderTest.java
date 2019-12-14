@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.AbstractKafkaTest;
@@ -61,6 +62,7 @@ import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.receiver.internals.ConsumerFactory;
 import reactor.kafka.util.TestUtils;
 import reactor.test.StepVerifier;
+import reactor.util.context.Context;
 
 /**
  * Kafka sender integration tests using embedded Kafka brokers and producers.
@@ -540,6 +542,19 @@ public class KafkaSenderTest extends AbstractKafkaTest {
 
         waitForMessages(consumer, count * 2, true);
         sender2.close();
+    }
+
+    @Test
+    public void senderContext() {
+        Flux<SenderRecord<Integer, String, Integer>> contextRecords = Flux.just(0)
+                .flatMap(i -> Mono.subscriberContext()
+                        .map(ctx -> new ProducerRecord<>(ctx.get("topic"), i % partitions, i, "Message " + i)))
+                .map(r -> SenderRecord.create(r, r.key()));
+
+        StepVerifier.create(kafkaSender.send(contextRecords).subscriberContext(Context.of("topic", topic)))
+                .expectNextMatches(r -> topic.equals(r.recordMetadata().topic()))
+                .expectComplete()
+                .verify(Duration.ofMillis(receiveTimeoutMillis));
     }
 
     private Consumer<Integer, String> createConsumer() throws Exception {

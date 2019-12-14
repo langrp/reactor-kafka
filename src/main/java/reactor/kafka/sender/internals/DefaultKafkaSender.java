@@ -51,6 +51,7 @@ import reactor.kafka.sender.TransactionManager;
 import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
+import reactor.util.context.Context;
 
 /**
  * Reactive producer that sends messages to Kafka topic partitions. The producer is thread-safe
@@ -259,6 +260,11 @@ public class DefaultKafkaSender<K, V> implements KafkaSender<K, V> {
         public void onSubscribe(Subscription s) {
             state.set(SubscriberState.ACTIVE);
             actual.onSubscribe(s);
+        }
+
+        @Override
+        public Context currentContext() {
+            return actual.currentContext();
         }
 
         @Override
